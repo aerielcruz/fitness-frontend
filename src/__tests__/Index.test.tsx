@@ -50,9 +50,9 @@ describe("Index page", () => {
 
     expect(screen.getByText(/Welcome to FitTrack/i)).toBeInTheDocument();
     expect(screen.getByText(/Your personal fitness companion/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Track Activities/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Monitor Progress/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Stay Motivated/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Track Activities/i)[0]).toBeInTheDocument();
+    expect(screen.getAllByText(/Monitor Progress/i)[0]).toBeInTheDocument();
+    expect(screen.getAllByText(/Stay Motivated/i)[0]).toBeInTheDocument();
   });
 
   it("navigates to /auth when Get Started button is clicked", () => {
