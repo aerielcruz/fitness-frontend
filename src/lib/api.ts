@@ -51,6 +51,47 @@ class ApiClient {
     return token ? { Authorization: `Bearer ${token}` } : {};
   }
 
+  private async refreshToken(): Promise<void> {
+    const refresh = localStorage.getItem("refresh_token");
+    if (!refresh) throw new Error("No refresh token available");
+
+    const response = await fetch(`${API_BASE_URL}/token/refresh/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh }),
+    });
+
+    if (!response.ok) {
+      this.logout();
+      throw new Error("Session expired. Please log in again.");
+    }
+
+    const data = await response.json();
+    localStorage.setItem("access_token", data.access);
+  }
+
+  private async fetchWithAuth(input: RequestInfo, init?: RequestInit) {
+    let response = await fetch(input, {
+      ...init,
+      headers: { ...(init?.headers || {}), ...this.getAuthHeader() },
+    });
+
+    // If 401, try refreshing token and retry
+    if (response.status === 401) {
+      try {
+        await this.refreshToken();
+        response = await fetch(input, {
+          ...init,
+          headers: { ...(init?.headers || {}), ...this.getAuthHeader() },
+        });
+      } catch (err) {
+        throw err; // If refresh fails, propagate error
+      }
+    }
+
+    return response;
+  }
+
   async register(data: RegisterData): Promise<User> {
     const response = await fetch(`${API_BASE_URL}/auth/register/`, {
       method: "POST",
@@ -91,10 +132,7 @@ class ApiClient {
     try {
       await fetch(`${API_BASE_URL}/auth/logout/`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...this.getAuthHeader(),
-        },
+        headers: { "Content-Type": "application/json", ...this.getAuthHeader() },
         body: JSON.stringify({ refresh }),
       });
     } finally {
@@ -104,72 +142,45 @@ class ApiClient {
   }
 
   async getUser(): Promise<User> {
-    const response = await fetch(`${API_BASE_URL}/auth/me/`, {
-      headers: this.getAuthHeader(),
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch user details");
-    }
-
+    const response = await this.fetchWithAuth(`${API_BASE_URL}/auth/me/`);
+    if (!response.ok) throw new Error("Failed to fetch user details");
     return response.json();
   }
 
   async getActivities(): Promise<Activity[]> {
-    const response = await fetch(`${API_BASE_URL}/activities/`, {
-      headers: this.getAuthHeader(),
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch activities");
-    }
-
+    const response = await this.fetchWithAuth(`${API_BASE_URL}/activities/`);
+    if (!response.ok) throw new Error("Failed to fetch activities");
     return response.json();
   }
 
   async createActivity(data: CreateActivityData): Promise<Activity> {
-    const response = await fetch(`${API_BASE_URL}/activities/`, {
+    const response = await this.fetchWithAuth(`${API_BASE_URL}/activities/`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...this.getAuthHeader(),
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
 
-    if (!response.ok) {
-      throw new Error("Failed to create activity");
-    }
-
+    if (!response.ok) throw new Error("Failed to create activity");
     return response.json();
   }
 
   async updateActivity(id: number, data: UpdateActivityData): Promise<Activity> {
-    const response = await fetch(`${API_BASE_URL}/activities/${id}/`, {
+    const response = await this.fetchWithAuth(`${API_BASE_URL}/activities/${id}/`, {
       method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        ...this.getAuthHeader(),
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
 
-    if (!response.ok) {
-      throw new Error("Failed to update activity");
-    }
-
+    if (!response.ok) throw new Error("Failed to update activity");
     return response.json();
   }
 
   async deleteActivity(id: number): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/activities/${id}/`, {
+    const response = await this.fetchWithAuth(`${API_BASE_URL}/activities/${id}/`, {
       method: "DELETE",
-      headers: this.getAuthHeader(),
     });
 
-    if (!response.ok) {
-      throw new Error("Failed to delete activity");
-    }
+    if (!response.ok) throw new Error("Failed to delete activity");
   }
 }
 
