@@ -5,7 +5,7 @@ import viteConfig from './vite.config.ts'
 export default mergeConfig(viteConfig, defineConfig({
   test: {
     globals: true,          // use global test APIs like describe, it, expect
-    environment: 'jsdom',   // simulate browser environment
+    environment: 'node',   // simulate browser environment
     setupFiles: './src/setupTests.ts', // optional setup file
   },
   resolve: {
